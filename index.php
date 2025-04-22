@@ -1,69 +1,80 @@
 <?php
  
-use PhpParser\Node\Stmt\While_;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Slim\Factory\AppFactory;        
 use Slim\Exception\HttpNotFoundException;
-use Slim\Factory\AppFactory;
+use ViniCavilha\Tarefas\service\TarefasService;
+use ViniCavilha\Tarefas\Math\Basic;
  
 require __DIR__ . '/vendor/autoload.php';
  
 $app = AppFactory::create();
  
+$app->get('/hello/{name}', function (Request $request, Response $response, array $args) {
+    $name = $args['name'];
+    $response->getBody()->write("Hello, $name");
+    return $response;
+});
+ 
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 $errorMiddleware->setErrorHandler(HttpNotFoundException::class, function (
-Request $request,
-Throwable $exception,
-bool $displayErrorDetails,
-bool $logErrors,
-bool $logErrorDetails
+    Request $request,
+    Throwable $exception,
+    bool $displayErrorDetails,
+    bool $logErrors,
+    bool $logErrorDetails
 ) use ($app) {
-$response = $app->getResponseFactory()->createResponse();
-$response->getBody()->write('{"error": "voce ser bobo!"}');
-return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+    $response = $app->getResponseFactory()->createResponse();
+    $response->getBody()->write('{"error": "Recurso não foi encontrado"}');
+    return $response->withHeader('Content-Type', 'application/json')
+                    ->withStatus(404);
 });
  
+$app->get('/tarefas', function (Request $request, Response $response, array $args){
+    $tarefas_service = new TarefasService();
+    $tarefas = $tarefas_service->getAllTarefas();
+    $response->getBody()->write(json_encode($tarefas));
+    return $response->withHeader('Content-Type', 'application/json');
+});
  
-$app->post('/usuarios', function(Request $request, Response $response, array $args) {
-$parametros = (array) $request->getParsedBody();
- 
-if (!array_key_exists('login', $parametros) || empty($parametros['login'])) {
-$response->getBody()->write(json_encode([
-"mensagem" => "Login obrigatorio"
-]));
-return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+$app->post('/tarefas', function(Request $request, Response $response, array $args){
+if (!array_key_exists('titulo', $args) || empty($args['titulo'])){
+    $response->getBody()->write(json_encode([
+        "mensagem" => "título é obrigatorio"
+    ]));
+    return $response->withHeader('Content-type', 'application/json')->withStatus(400);
 }
+    $tarefa = array_merge(['titulo' => '', 'concluido' => false], $parametros);
+    $tarefas_service = new TarefaService();
+    $tarefas_service->createTarefa($tarefa);
  
-if (!array_key_exists('senha', $parametros) || empty($parametros['senha'])) {
-$response->getBody()->write(json_encode([
-"mensagem" => "Senha obrigatoria"
-]));
-return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
-}
-return $response->withStatus(201);
+    return $response->withStatus(201);
 });
  
-$app->get('/usuarios', function (Request $request, Response $response, array $args) {
-$usuarios = [
-["nome" => "Usuario 1", "login" => "user1", "perfil_adm" => false],
-["nome" => "Usuario 2", "login" => "user2", "perfil_adm" => false],
-["nome" => "Usuario 3", "login" => "user3", "perfil_adm" => false],
-["nome" => "Admin", "login" => "admin", "perfil_adm" => true],
-["nome" => "Usuario 5", "login" => "user5", "perfil_adm" => false],
-];
-$response->getBody()->write(json_encode($usuarios));
-return $response->withHeader('Content-Type', 'application/json');
+$app->delete('/tarefas', function(Request $request, Response $response, array $args){
 });
  
-$app->delete('/usuarios/{id}', function(Request $request, Response $response, array $args) {
-$id = $args['id'];
-return $response->withStatus(204);
-});
+$app->put('/tarefas', function(Request $request, Response $response, array $args){
+    $id= $args['id'];
+    $dados_para_atualizar = json_decode($request->getBody()->getContents(), true);
+    if(array_key_exists('titulo', $dados_para_atualizar) && empty($dadps_para_atualizar['titulo'])){
+        $response->getBody()->write(json_encode([
+            "mensagem" => "título é obrigatório"
+        ]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    }
+    $tarefa_service = new TarefaService();
+    $tarefa_service->updateTarefa($id,$dados_para_atualizar);
  
-$app->put('/usuarios', function(Request $request, Response $response, array $args) {
-$resposta = "Users, atualizados com sucesso";
-$response->getBody()->write(json_encode($resposta));
-return $response->withHeader('Content-Type', 'application/json');
+    return $response->withStatus(201);
 });
- 
+
+$app->get("/math/soma/{num1}/{num2}", function(Request $request, Response $response, array $args) {
+    $basic = new Basic();
+    $resultado = $basic->soma($args['num1'], $args['num2']);
+    $response->getBody()->write ((string) $resultado);
+    return $response->withHeader('Content-Type', 'application/json');
+});
+
 $app->run();
